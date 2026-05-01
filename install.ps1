@@ -224,27 +224,30 @@ if ($check.mcpServers.strava) {
     Write-Host ($stravaEntry | ConvertTo-Json -Depth 5) -ForegroundColor White
 }
 
-# Kill Claude Desktop if running, then relaunch so the new config is picked up
+# Kill Claude Desktop if running so the new config is picked up on next launch
 Write-Host ""
 Write-Host "  >> Restarting Claude Desktop..." -ForegroundColor Cyan
-Get-Process | Where-Object { $_.Name -like "*claude*" -or $_.Path -like "*claude*" } -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+try {
+    Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*claude*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+} catch { }
 Start-Sleep -Seconds 2
 
-# Try to find and launch Claude Desktop
-$claudeExePaths = @(
-    "$env:LOCALAPPDATA\AnthropicClaude\Claude.exe",
-    "$env:LOCALAPPDATA\Claude\Claude.exe",
-    "$env:PROGRAMFILES\Claude\Claude.exe"
-)
-$storePkg2 = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Claude_*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
-if ($storePkg2) {
-    # Store version - launch via explorer
-    Start-Process "explorer.exe" "shell:AppsFolder\$($storePkg2.Name)!Claude" -ErrorAction SilentlyContinue
-} else {
-    foreach ($exe in $claudeExePaths) {
-        if (Test-Path $exe) { Start-Process $exe; break }
+# Try to relaunch Claude Desktop
+try {
+    $storePkg2 = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Claude_*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($storePkg2) {
+        Start-Process "explorer.exe" "shell:AppsFolder\$($storePkg2.Name)!Claude" -ErrorAction SilentlyContinue
+    } else {
+        $claudeExePaths = @(
+            "$env:LOCALAPPDATA\AnthropicClaude\Claude.exe",
+            "$env:LOCALAPPDATA\Claude\Claude.exe",
+            "$env:PROGRAMFILES\Claude\Claude.exe"
+        )
+        foreach ($exe in $claudeExePaths) {
+            if (Test-Path $exe) { Start-Process $exe; break }
+        }
     }
-}
+} catch { }
 
 # ── 7. Done ───────────────────────────────────────────────────────────────────
 Write-Host ''
