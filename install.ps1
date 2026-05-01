@@ -220,18 +220,42 @@ $check = Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json
 if ($check.mcpServers.strava) {
     Ok "Verified - strava entry is in the config"
 } else {
-    Write-Host ""
     Write-Host "  !! Auto-update failed. Add this manually to $CLAUDE_CFG" -ForegroundColor Red
     Write-Host ($stravaEntry | ConvertTo-Json -Depth 5) -ForegroundColor White
+}
+
+# Kill Claude Desktop if running, then relaunch so the new config is picked up
+Write-Host ""
+Write-Host "  >> Restarting Claude Desktop..." -ForegroundColor Cyan
+Get-Process | Where-Object { $_.Name -like "*claude*" -or $_.Path -like "*claude*" } -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+# Try to find and launch Claude Desktop
+$claudeExePaths = @(
+    "$env:LOCALAPPDATA\AnthropicClaude\Claude.exe",
+    "$env:LOCALAPPDATA\Claude\Claude.exe",
+    "$env:PROGRAMFILES\Claude\Claude.exe"
+)
+$storePkg2 = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Claude_*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($storePkg2) {
+    # Store version - launch via explorer
+    Start-Process "explorer.exe" "shell:AppsFolder\$($storePkg2.Name)!Claude" -ErrorAction SilentlyContinue
+} else {
+    foreach ($exe in $claudeExePaths) {
+        if (Test-Path $exe) { Start-Process $exe; break }
+    }
 }
 
 # ── 7. Done ───────────────────────────────────────────────────────────────────
 Write-Host ''
 Write-Host '  ===========================================' -ForegroundColor Green
-Write-Host '    Installation complete!' -ForegroundColor Green
-Write-Host '' -ForegroundColor Green
-Write-Host '    Last step: Restart Claude Desktop' -ForegroundColor Green
-Write-Host '    Then ask it anything about your training!' -ForegroundColor Green
+Write-Host '    ALL DONE!' -ForegroundColor Green
+Write-Host '    Claude Desktop has been restarted.' -ForegroundColor Green
+Write-Host '    Open a new chat and ask about your' -ForegroundColor Green
+Write-Host '    training - Strava is ready!' -ForegroundColor Green
 Write-Host '  ===========================================' -ForegroundColor Green
+Write-Host ''
+Write-Host "  Config written to:" -ForegroundColor Gray
+Write-Host "  $CLAUDE_CFG" -ForegroundColor Gray
 Write-Host ''
 Read-Host '  Press Enter to close'
