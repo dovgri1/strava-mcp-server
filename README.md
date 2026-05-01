@@ -50,15 +50,13 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 ### macOS
 
-Open **Terminal** (press `Cmd + Space`, type `Terminal`, hit Enter) and paste:
+1. Download **[install.command](https://github.com/dovgri1/strava-mcp-server/raw/main/install.command)**
+2. Double-click it — Terminal opens and runs the installer
+3. Follow the prompts — restart Claude Desktop when done
 
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dovgri1/strava-mcp-server/main/install.sh)"
-```
+> **First time only:** macOS may show a security warning. Right-click the file → **Open** → **Open** to proceed. This is standard macOS behaviour for files downloaded from the internet.
 
-Follow the prompts — restart Claude Desktop when done.
-
-> The script installs Node.js automatically via Homebrew if you don't have it.
+> Node.js is installed automatically via Homebrew if you don't have it.
 
 ---
 
