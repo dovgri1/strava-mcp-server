@@ -160,7 +160,10 @@ if ($cfg.mcpServers.PSObject.Properties['strava']) {
     $cfg.mcpServers | Add-Member -MemberType NoteProperty -Name strava -Value $stravaBlock
 }
 
-$cfg | ConvertTo-Json -Depth 10 | Set-Content $CLAUDE_CFG -Encoding UTF8
+$cfg | ConvertTo-Json -Depth 10 | ForEach-Object {
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($CLAUDE_CFG, $_, $utf8NoBom)
+}
 Ok "Claude Desktop config saved"
 
 # ── 7. Done ───────────────────────────────────────────────────────────────────
