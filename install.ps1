@@ -1,4 +1,4 @@
-# Strava for Claude Desktop — Windows Installer
+# Strava for Claude Desktop - Windows Installer
 # Double-click install.bat to run this.
 
 $ErrorActionPreference = 'Stop'
@@ -8,7 +8,6 @@ $GITHUB_REPO  = 'strava-mcp-server'
 $INSTALL_DIR  = "$env:LOCALAPPDATA\strava-mcp-server"
 $NODE_VERSION = '22.14.0'
 $NODE_MSI     = "$env:TEMP\nodejs-installer.msi"
-$CLAUDE_CFG   = "$env:APPDATA\Claude\claude_desktop_config.json"
 
 function Step { param($t) Write-Host "`n  >> $t" -ForegroundColor Cyan }
 function Ok   { param($t) Write-Host "     $t"   -ForegroundColor Green }
@@ -32,7 +31,7 @@ try {
 } catch {}
 
 if (-not $nodeOk) {
-    Ok 'Node.js not found — downloading (about 30 MB, takes ~1 minute)...'
+    Ok 'Node.js not found - downloading (about 30 MB, takes ~1 minute)...'
     $msiUrl = "https://nodejs.org/dist/v$NODE_VERSION/node-v$NODE_VERSION-x64.msi"
     try {
         Invoke-WebRequest -Uri $msiUrl -OutFile $NODE_MSI -UseBasicParsing
@@ -87,7 +86,7 @@ Write-Host '  Steps:' -ForegroundColor Yellow
 Write-Host '    1. Click "Create App" (or use an existing one)' -ForegroundColor Yellow
 Write-Host '    2. Fill in any name, website and description' -ForegroundColor Yellow
 Write-Host '    3. Set Authorization Callback Domain to:  localhost' -ForegroundColor Yellow
-Write-Host '    4. Save — then copy the Client ID and Client Secret' -ForegroundColor Yellow
+Write-Host '    4. Save - then copy the Client ID and Client Secret' -ForegroundColor Yellow
 Write-Host ''
 Start-Process 'https://www.strava.com/settings/api'
 Read-Host '  Press Enter once you have your Client ID and Client Secret'
@@ -129,55 +128,68 @@ Step 'Updating Claude Desktop config'
 
 $distPath = "$INSTALL_DIR\dist\index.js"
 
-$stravaBlock = [ordered]@{
-    command = 'node'
-    args    = @($distPath)
-    env     = [ordered]@{
-        STRAVA_CLIENT_ID     = $tokens['STRAVA_CLIENT_ID']
-        STRAVA_CLIENT_SECRET = $tokens['STRAVA_CLIENT_SECRET']
-        STRAVA_REFRESH_TOKEN = $tokens['STRAVA_REFRESH_TOKEN']
-    }
+# Find the actual Claude Desktop config - location varies by install type
+$candidatePaths = @(
+    "$env:APPDATA\Claude\claude_desktop_config.json",
+    "$env:LOCALAPPDATA\AnthropicClaude\claude_desktop_config.json",
+    "$env:APPDATA\AnthropicClaude\claude_desktop_config.json"
+)
+
+$CLAUDE_CFG = $null
+foreach ($p in $candidatePaths) {
+    if (Test-Path (Split-Path $p)) { $CLAUDE_CFG = $p; break }
 }
 
-$claudeDir = Split-Path $CLAUDE_CFG
-if (-not (Test-Path $claudeDir)) {
-    New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null
+if (-not $CLAUDE_CFG) {
+    $CLAUDE_CFG = $candidatePaths[0]
+    New-Item -ItemType Directory -Path (Split-Path $CLAUDE_CFG) -Force | Out-Null
+    Write-Host "     Claude config folder not found - creating: $CLAUDE_CFG" -ForegroundColor Yellow
 }
+Ok "Writing config to: $CLAUDE_CFG"
 
+# Load existing config or create blank
 if (Test-Path $CLAUDE_CFG) {
-    try {
-        $cfg = Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json
-    } catch {
-        # Backup the broken file and start fresh
-        Copy-Item $CLAUDE_CFG "$CLAUDE_CFG.bak" -Force
-        $cfg = [PSCustomObject]@{ mcpServers = [PSCustomObject]@{} }
-    }
-} else {
-    $cfg = [PSCustomObject]@{ mcpServers = [PSCustomObject]@{} }
+    try   { $cfg = Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json }
+    catch { Copy-Item $CLAUDE_CFG "$CLAUDE_CFG.bak" -Force; $cfg = $null }
+}
+if (-not $cfg) {
+    $cfg = New-Object PSObject
+    $cfg | Add-Member -MemberType NoteProperty -Name mcpServers -Value (New-Object PSObject)
+}
+if (-not $cfg.PSObject.Properties['mcpServers']) {
+    $cfg | Add-Member -MemberType NoteProperty -Name mcpServers -Value (New-Object PSObject)
 }
 
-if (-not $cfg.PSObject.Properties['mcpServers']) {
-    $cfg | Add-Member -MemberType NoteProperty -Name mcpServers -Value ([PSCustomObject]@{})
-}
+# Build strava entry
+$stravaEnv = New-Object PSObject
+$stravaEnv | Add-Member -MemberType NoteProperty -Name STRAVA_CLIENT_ID     -Value $tokens['STRAVA_CLIENT_ID']
+$stravaEnv | Add-Member -MemberType NoteProperty -Name STRAVA_CLIENT_SECRET -Value $tokens['STRAVA_CLIENT_SECRET']
+$stravaEnv | Add-Member -MemberType NoteProperty -Name STRAVA_REFRESH_TOKEN -Value $tokens['STRAVA_REFRESH_TOKEN']
+
+$stravaEntry = New-Object PSObject
+$stravaEntry | Add-Member -MemberType NoteProperty -Name command -Value 'node'
+$stravaEntry | Add-Member -MemberType NoteProperty -Name args    -Value @($distPath)
+$stravaEntry | Add-Member -MemberType NoteProperty -Name env     -Value $stravaEnv
 
 if ($cfg.mcpServers.PSObject.Properties['strava']) {
-    $cfg.mcpServers.strava = $stravaBlock
+    $cfg.mcpServers.strava = $stravaEntry
 } else {
-    $cfg.mcpServers | Add-Member -MemberType NoteProperty -Name strava -Value $stravaBlock
+    $cfg.mcpServers | Add-Member -MemberType NoteProperty -Name strava -Value $stravaEntry
 }
 
-# ConvertTo-Json must be captured as a variable — piping through ForEach-Object
-# splits the multiline string into individual lines, corrupting the file.
 $json = $cfg | ConvertTo-Json -Depth 10
 $utf8NoBom = New-Object System.Text.UTF8Encoding $false
 [System.IO.File]::WriteAllText($CLAUDE_CFG, $json, $utf8NoBom)
+Ok "Config written"
 
-# Verify the file is valid JSON
-try {
-    Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json | Out-Null
-    Ok "Claude Desktop config saved to: $CLAUDE_CFG"
-} catch {
-    Bail "Config was written but contains invalid JSON. Please open $CLAUDE_CFG and check it."
+# Verify
+$check = Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json
+if ($check.mcpServers.strava) {
+    Ok "Verified - strava entry is in the config"
+} else {
+    Write-Host ""
+    Write-Host "  !! Auto-update failed. Add this manually to $CLAUDE_CFG" -ForegroundColor Red
+    Write-Host ($stravaEntry | ConvertTo-Json -Depth 5) -ForegroundColor White
 }
 
 # ── 7. Done ───────────────────────────────────────────────────────────────────
