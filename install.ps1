@@ -128,53 +128,32 @@ Step 'Updating Claude Desktop config'
 
 $distPath = "$INSTALL_DIR\dist\index.js"
 
-# Find the actual Claude Desktop config - search exhaustively
+# Find the actual Claude Desktop config - Store install takes priority
 $CLAUDE_CFG = $null
 
-# 1. Search for an already-existing config file anywhere under AppData
-$searchRoots = @(
-    $env:APPDATA,
-    $env:LOCALAPPDATA,
-    "$env:LOCALAPPDATA\Packages"
-)
-foreach ($root in $searchRoots) {
-    if (-not (Test-Path $root)) { continue }
-    $found = Get-ChildItem $root -Filter "claude_desktop_config.json" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($found) { $CLAUDE_CFG = $found.FullName; break }
+# Microsoft Store version always wins if the package exists
+$storePkg = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Claude_*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($storePkg) {
+    $storeDir = "$($storePkg.FullName)\LocalCache\Roaming\Claude"
+    New-Item -ItemType Directory -Path $storeDir -Force | Out-Null
+    $CLAUDE_CFG = "$storeDir\claude_desktop_config.json"
+    Ok "Detected Microsoft Store install"
 }
 
-# 2. If no existing file, find the right folder to create it in
+# Direct install: search for existing config file
 if (-not $CLAUDE_CFG) {
-    $claudeDir = $null
+    $found = Get-ChildItem $env:APPDATA -Filter "claude_desktop_config.json" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found) { $CLAUDE_CFG = $found.FullName }
+}
+if (-not $CLAUDE_CFG) {
+    $found = Get-ChildItem $env:LOCALAPPDATA -Filter "claude_desktop_config.json" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($found) { $CLAUDE_CFG = $found.FullName }
+}
 
-    # Check fixed known locations
-    $knownDirs = @(
-        "$env:APPDATA\Claude",
-        "$env:LOCALAPPDATA\Claude",
-        "$env:LOCALAPPDATA\AnthropicClaude",
-        "$env:APPDATA\AnthropicClaude"
-    )
-    foreach ($d in $knownDirs) {
-        if (Test-Path $d) { $claudeDir = $d; break }
-    }
-
-    # Check Microsoft Store package
-    if (-not $claudeDir) {
-        $storePkg = Get-ChildItem "$env:LOCALAPPDATA\Packages" -Filter "Claude_*" -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($storePkg) {
-            $claudeDir = "$($storePkg.FullName)\LocalCache\Roaming\Claude"
-            New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null
-        }
-    }
-
-    # Last resort: use standard path and create it
-    if (-not $claudeDir) {
-        $claudeDir = "$env:APPDATA\Claude"
-        New-Item -ItemType Directory -Path $claudeDir -Force | Out-Null
-        Write-Host "     WARNING: Claude Desktop folder not found. Make sure it is installed." -ForegroundColor Yellow
-    }
-
-    $CLAUDE_CFG = "$claudeDir\claude_desktop_config.json"
+# Last resort: standard direct-install path
+if (-not $CLAUDE_CFG) {
+    $CLAUDE_CFG = "$env:APPDATA\Claude\claude_desktop_config.json"
+    New-Item -ItemType Directory -Path (Split-Path $CLAUDE_CFG) -Force | Out-Null
 }
 
 Ok "Config path: $CLAUDE_CFG"
