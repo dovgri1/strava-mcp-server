@@ -145,7 +145,13 @@ if (-not (Test-Path $claudeDir)) {
 }
 
 if (Test-Path $CLAUDE_CFG) {
-    $cfg = Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json
+    try {
+        $cfg = Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json
+    } catch {
+        # Backup the broken file and start fresh
+        Copy-Item $CLAUDE_CFG "$CLAUDE_CFG.bak" -Force
+        $cfg = [PSCustomObject]@{ mcpServers = [PSCustomObject]@{} }
+    }
 } else {
     $cfg = [PSCustomObject]@{ mcpServers = [PSCustomObject]@{} }
 }
@@ -160,11 +166,19 @@ if ($cfg.mcpServers.PSObject.Properties['strava']) {
     $cfg.mcpServers | Add-Member -MemberType NoteProperty -Name strava -Value $stravaBlock
 }
 
-$cfg | ConvertTo-Json -Depth 10 | ForEach-Object {
-    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText($CLAUDE_CFG, $_, $utf8NoBom)
+# ConvertTo-Json must be captured as a variable — piping through ForEach-Object
+# splits the multiline string into individual lines, corrupting the file.
+$json = $cfg | ConvertTo-Json -Depth 10
+$utf8NoBom = New-Object System.Text.UTF8Encoding $false
+[System.IO.File]::WriteAllText($CLAUDE_CFG, $json, $utf8NoBom)
+
+# Verify the file is valid JSON
+try {
+    Get-Content $CLAUDE_CFG -Raw | ConvertFrom-Json | Out-Null
+    Ok "Claude Desktop config saved to: $CLAUDE_CFG"
+} catch {
+    Bail "Config was written but contains invalid JSON. Please open $CLAUDE_CFG and check it."
 }
-Ok "Claude Desktop config saved"
 
 # ── 7. Done ───────────────────────────────────────────────────────────────────
 Write-Host ''
