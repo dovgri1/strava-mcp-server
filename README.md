@@ -42,28 +42,34 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server that ex
 
 ## Setup
 
-### Quick setup (one command)
+### Windows
+
+1. Download **[install.bat](https://github.com/dovgri1/strava-mcp-server/raw/main/install.bat)** and **[install.ps1](https://github.com/dovgri1/strava-mcp-server/raw/main/install.ps1)** into the same folder
+2. Double-click `install.bat`
+3. Follow the prompts — restart Claude Desktop when done
+
+### macOS
+
+Open **Terminal** (press `Cmd + Space`, type `Terminal`, hit Enter) and paste:
 
 ```bash
-git clone https://github.com/your-username/strava-mcp-server.git
-cd strava-mcp-server
-npm run setup
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/dovgri1/strava-mcp-server/main/install.sh)"
 ```
 
-The wizard will:
-1. Install dependencies
-2. Ask for your Strava **Client ID** and **Client Secret**
-3. Open the Strava authorization page in your browser
-4. Write all tokens to `.env`
-5. Build the project
-6. Print the exact JSON block to paste into Claude Desktop config
+Follow the prompts — restart Claude Desktop when done.
 
-Then:
-1. Open your Claude Desktop config:
-   - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-2. Paste in the printed `"strava"` block (merge it into `mcpServers` if you have other servers)
-3. Restart Claude Desktop
+> The script installs Node.js automatically via Homebrew if you don't have it.
+
+---
+
+### What the installer does (both platforms)
+
+1. Installs Node.js if not present
+2. Downloads this project
+3. Opens [strava.com/settings/api](https://www.strava.com/settings/api) — you create a free API app and paste in your Client ID + Secret
+4. Opens the Strava authorization page in your browser
+5. Writes everything to Claude Desktop config automatically
+6. Done — just restart Claude Desktop
 
 ---
 
@@ -72,11 +78,11 @@ Then:
 1. Go to [https://www.strava.com/settings/api](https://www.strava.com/settings/api)
 2. Create an app (any name, website, description)
 3. Set **Authorization Callback Domain** to `localhost`
-4. Copy your **Client ID** and **Client Secret** — paste them when the setup wizard asks
+4. Copy your **Client ID** and **Client Secret** — the installer will ask for them
 
 ---
 
-### Manual setup (alternative)
+### Manual setup (for developers)
 
 ```bash
 npm install
