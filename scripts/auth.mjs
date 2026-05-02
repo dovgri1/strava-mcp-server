@@ -92,6 +92,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const code = url.searchParams.get("code");
   const error = url.searchParams.get("error");
+  const grantedScope = url.searchParams.get("scope") || "";
 
   if (error || !code) {
     res.writeHead(400, { "Content-Type": "text/html" });
@@ -129,10 +130,10 @@ const server = createServer(async (req, res) => {
   }
 
   const data = await tokenRes.json();
-  const { access_token, refresh_token, expires_at, athlete, scope } = data;
+  const { access_token, refresh_token, expires_at, athlete } = data;
 
-  // Verify that all required scopes were granted
-  const grantedScopes = (scope || "").split(",").map(s => s.trim());
+  // Scope is returned in the callback URL, not the token body
+  const grantedScopes = grantedScope.split(",").map(s => s.trim());
   const requiredScopes = ["activity:read_all", "activity:write"];
   const missingScopes = requiredScopes.filter(s => !grantedScopes.includes(s));
 
