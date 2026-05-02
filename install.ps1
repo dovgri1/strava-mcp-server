@@ -108,7 +108,14 @@ STRAVA_REFRESH_TOKEN=
 # ── 5. Strava authorization ───────────────────────────────────────────────────
 Step 'Authorising with Strava'
 Write-Host ''
-Write-Host '  A browser window will open. Click Authorize on ALL checkboxes.' -ForegroundColor Yellow
+Write-Host '  A browser window will open with a Strava permission screen.' -ForegroundColor Yellow
+Write-Host ''
+Write-Host '  IMPORTANT: tick ALL checkboxes before clicking Authorize:' -ForegroundColor White
+Write-Host '    [x] View data about your public profile' -ForegroundColor Green
+Write-Host '    [x] View data about your activities' -ForegroundColor Green
+Write-Host '    [x] View your complete Strava profile' -ForegroundColor Green
+Write-Host '    [x] View data about your private activities' -ForegroundColor Green
+Write-Host '    [x] Upload your activities  <-- often unchecked by default!' -ForegroundColor Green
 Write-Host ''
 Read-Host '  Press Enter to open the browser'
 

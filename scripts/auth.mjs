@@ -102,9 +102,12 @@ const server = createServer(async (req, res) => {
   }
 
   res.writeHead(200, { "Content-Type": "text/html" });
-  res.end(
-    "<h1>Authorization successful!</h1><p>You can close this tab now.</p>"
-  );
+  res.end(`
+    <html><body style="font-family:sans-serif;max-width:500px;margin:40px auto;text-align:center">
+      <h2 style="color:green">&#10003; Authorized!</h2>
+      <p>You can close this tab and return to the installer.</p>
+    </body></html>
+  `);
 
   // Exchange code for tokens
   const tokenRes = await fetch("https://www.strava.com/api/v3/oauth/token", {
@@ -126,9 +129,23 @@ const server = createServer(async (req, res) => {
   }
 
   const data = await tokenRes.json();
-  const { access_token, refresh_token, expires_at, athlete } = data;
+  const { access_token, refresh_token, expires_at, athlete, scope } = data;
+
+  // Verify that all required scopes were granted
+  const grantedScopes = (scope || "").split(",").map(s => s.trim());
+  const requiredScopes = ["activity:read_all", "activity:write"];
+  const missingScopes = requiredScopes.filter(s => !grantedScopes.includes(s));
+
+  if (missingScopes.length > 0) {
+    console.error(`\n⚠️  WARNING: Missing scopes: ${missingScopes.join(", ")}`);
+    console.error("   On the Strava authorization page you must tick ALL checkboxes.");
+    console.error("   Please run this script again and make sure every box is checked.\n");
+    server.close();
+    process.exit(1);
+  }
 
   console.log("\n✅ Success! Tokens obtained for athlete:", athlete?.firstname, athlete?.lastname);
+  console.log(`   Scopes granted: ${grantedScopes.join(", ")}`);
   console.log("\nAdd these values to your .env file:\n");
   console.log(`STRAVA_CLIENT_ID=${CLIENT_ID}`);
   console.log(`STRAVA_CLIENT_SECRET=${CLIENT_SECRET}`);
